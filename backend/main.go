@@ -4,6 +4,7 @@ import (
     "encoding/json"
     "net/http"
     "log"
+	"rsc.io/quote"
 )
 
 type Message struct {
@@ -14,7 +15,7 @@ func helloHandler(w http.ResponseWriter, r *http.Request) {
     w.Header().Set("Content-Type", "application/json")
     // Allow CORS for local development
     w.Header().Set("Access-Control-Allow-Origin", "*")
-    json.NewEncoder(w).Encode(Message{Message: "Hello from Go!"})
+    json.NewEncoder(w).Encode(Message{Message: quote.Go()})
 }
 
 func main() {
