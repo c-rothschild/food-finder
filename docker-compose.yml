@@ -4,10 +4,15 @@ services:
     ports:
       - "8000:8000"
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}
     ports:
       - "3000:3000"
-    volumes:
-      - ./frontend:/app
+    # volumes:
+    #   - ./frontend:/app
     environment:
       - CHOKIDAR_USEPOLLING=true
+      - NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=${NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}
+      
