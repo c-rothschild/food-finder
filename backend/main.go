@@ -8,19 +8,9 @@ import (
     "os"
     "googlemaps.github.io/maps"
     "strconv"
+    "fmt"
     "context"
 )
-
-// apiKey is set from the environment variable or command-line flag
-var (
-    apiKey = flag.String("key", os.Getenv("NEXT_PUBLIC_GOOGLE_MAPS_API_KEY"), "API Key for using Google Maps API.")
-)
-
-// Message is a simple struct for hello endpoint responses
-// (not currently used, but kept for example/expansion)
-type Message struct {
-    Message string `json:"message"`
-}
 
 // enableCORS sets CORS headers to allow requests from the frontend
 func enableCORS(w http.ResponseWriter) {
@@ -46,6 +36,7 @@ func nearbyHandler(w http.ResponseWriter, r *http.Request) {
         http.Error(w, "Invalid latitude", http.StatusBadRequest)
         return
     }
+
     lng, err := strconv.ParseFloat(lngStr, 64)
     if err != nil {
         http.Error(w, "Invalid longitude", http.StatusBadRequest)
@@ -69,8 +60,36 @@ func nearbyHandler(w http.ResponseWriter, r *http.Request) {
     // Build the Nearby Search request
     req := &maps.NearbySearchRequest{
         Location: &maps.LatLng{Lat: lat, Lng: lng},
-        Radius:   1000, // meters
+        
     }
+
+    // Parse price levels from query params
+    minPriceStr := r.URL.Query().Get("minprice")
+    maxPriceStr := r.URL.Query().Get("maxprice")
+    radiusStr := r.URL.Query().Get("radius")
+    placeType := r.URL.Query().Get("type")
+    openNow := r.URL.Query().Get("open_now") == "true"
+
+    // Parse minPrice and maxPrice to int
+    var radius uint
+
+    if radiusStr != "" {
+        if v, err := strconv.ParseUint(radiusStr, 10, 32); err == nil {
+            radius = uint(v)
+        }
+    }
+
+    parsePriceLevels(minPriceStr, maxPriceStr, req, w)
+
+    req.Radius = radius
+
+    // Parse place type from query params
+    parsePlaceType(placeType, req)
+
+    
+    req.OpenNow = openNow
+
+    
     // Perform the Nearby Search
     results, err := client.NearbySearch(context.Background(), req)
     if err != nil {
@@ -82,10 +101,43 @@ func nearbyHandler(w http.ResponseWriter, r *http.Request) {
     json.NewEncoder(w).Encode(results.Results)
 }
 
-// check is a helper to log fatal errors (not currently used)
-func check(err error) {
-	if err != nil {
-		log.Fatalf("fatal error: %s", err)
+
+func parsePriceLevel(priceLevel string, w http.ResponseWriter) maps.PriceLevel {
+	switch priceLevel {
+	case "0":
+		return maps.PriceLevelFree
+	case "1":
+		return maps.PriceLevelInexpensive
+	case "2":
+		return maps.PriceLevelModerate
+	case "3":
+		return maps.PriceLevelExpensive
+	case "4":
+		return maps.PriceLevelVeryExpensive
+	default:
+		http.Error(w, "Unknown price level", http.StatusInternalServerError)
+	}
+	return maps.PriceLevelFree
+}
+
+func parsePriceLevels(minPriceStr string, maxPriceStr string, r *maps.NearbySearchRequest, w http.ResponseWriter) {
+	if minPriceStr != "" {
+		r.MinPrice = parsePriceLevel(minPriceStr, w)
+	}
+
+	if maxPriceStr != "" {
+		r.MaxPrice = parsePriceLevel(minPriceStr, w)
+	}
+}
+
+func parsePlaceType(placeType string, r *maps.NearbySearchRequest) {
+	if placeType != "" {
+		t, err := maps.ParsePlaceType(placeType)
+		if err != nil {
+			usageAndExit(fmt.Sprintf("Unknown place type \"%v\"", placeType))
+		}
+
+		r.Type = t
 	}
 }
 
@@ -97,5 +149,11 @@ func main() {
 
     log.Println("Server running on :8000")
     log.Fatal(http.ListenAndServe(":8000", nil))
+}
+func usageAndExit(msg string) {
+	fmt.Fprintln(os.Stderr, msg)
+	fmt.Println("Flags:")
+	flag.PrintDefaults()
+	os.Exit(2)
 }
 
