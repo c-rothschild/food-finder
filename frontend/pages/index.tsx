@@ -9,6 +9,7 @@ const containerStyle = {
 
 // Blue marker icon URL from Google Maps
 const BLUE_MARKER_ICON = 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png';
+const RED_MARKER_ICON = 'http://maps.google.com/mapfiles/ms/icons/red-dot.png';
 
 const PRICE_LEVELS = [
   { value: '1', label: '1 (Inexpensive)' },
@@ -16,6 +17,12 @@ const PRICE_LEVELS = [
   { value: '3', label: '3 (Expensive)' },
   { value: '4', label: '4 (Very Expensive)' },
 ];
+
+// Helper to convert price level to $ signs
+function priceLevelToDollarSigns(level: number | undefined) {
+  if (typeof level !== 'number') return '';
+  return '$'.repeat(level + 1);
+}
 
 export default function Home() {
   // State to store fetched places
@@ -93,14 +100,26 @@ export default function Home() {
     }
   };
 
+  // Helper to get Google Maps link for a place
+  const getGoogleMapsLink = (place: any) => {
+    if (place.place_id) {
+      return `https://www.google.com/maps/place/?q=place_id:${place.place_id}`;
+    }
+    return '';
+  };
+
+  // Helper to show address/location (instead of travel time)
+  const getPlaceAddress = (place: any) => {
+    if (place.vicinity) return place.vicinity;
+    if (place.formatted_address) return place.formatted_address;
+    return '';
+  };
+
   return (
     <div style={{ padding: 20 }}>
-      <h1>Google Maps Location</h1>
-      {/* Button to get user's location */}
+      <h1>Find Restaurants Near You</h1>
       <button onClick={requestLocation}>Get My Location</button>
-      {/* Display error messages if any */}
       {error && <div style={{ color: 'red' }}>{error}</div>}
-      {/* Render the map only when loaded and location is available */}
       {isLoaded && location && (
         <>
         <div style={{ margin: '10px 0' }}>
@@ -132,38 +151,65 @@ export default function Home() {
             </label>
             <button onClick={fetchNearbyPlaces}>Fetch Nearby Places</button>
           </div>
-        <GoogleMap
-          mapContainerStyle={containerStyle}
-          center={location}
-          zoom={15}
-        >
-          {/* User's location marker */}
-          <Marker position={location} />
-          {/* Render blue markers for each nearby place */}
-          {places.map((place, idx) => (
-            <Marker
-              key={place.place_id || idx}
-              position={{ lat: place.geometry.location.lat, lng: place.geometry.location.lng }}
-              icon={BLUE_MARKER_ICON}
-              onClick={() => setSelectedPlace(place)}
-            />
-          ))}
-          {/* Show InfoWindow with place name when a marker is clicked */}
-          {selectedPlace && (
-            <InfoWindow
-              position={{
-                lat: selectedPlace.geometry.location.lat,
-                lng: selectedPlace.geometry.location.lng
-              }}
-              onCloseClick={() => setSelectedPlace(null)}
-            >
-              <div>{selectedPlace.name}</div>
-            </InfoWindow>
-          )}
-        </GoogleMap>
+        {/* Sticky map container */}
+        <div style={{ position: 'sticky', top: 0, zIndex: 10, background: '#fff', paddingBottom: 16 }}>
+          <GoogleMap
+            mapContainerStyle={containerStyle}
+            center={location}
+            zoom={15}
+          >
+            <Marker position={location} />
+            {places.map((place, idx) => (
+              <Marker
+                key={place.place_id || idx}
+                position={{ lat: place.geometry.location.lat, lng: place.geometry.location.lng }}
+                icon={selectedPlace && (selectedPlace.place_id === place.place_id) ? RED_MARKER_ICON : BLUE_MARKER_ICON}
+                onClick={() => setSelectedPlace(place)}
+              />
+            ))}
+            {selectedPlace && (
+              <InfoWindow
+                position={{
+                  lat: selectedPlace.geometry.location.lat,
+                  lng: selectedPlace.geometry.location.lng
+                }}
+                onCloseClick={() => setSelectedPlace(null)}
+              >
+                <div>{selectedPlace.name}</div>
+              </InfoWindow>
+            )}
+          </GoogleMap>
+        </div>
         {/* Show message if search performed and no places found */}
         {searchPerformed && places.length === 0 && (
           <div style={{ color: 'orange', marginTop: 16 }}>No places found for the selected criteria.</div>
+        )}
+        {/* Scrollable results list */}
+        {places.length > 0 && (
+          <div style={{ marginTop: 24, maxHeight: 400, overflowY: 'auto', border: '1px solid #eee', borderRadius: 8, background: '#fafafa', padding: 16 }}>
+            <h2>Results</h2>
+            <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+              {places.map((place, idx) => (
+                <li
+                  key={place.place_id || idx}
+                  style={{
+                    marginBottom: 16,
+                    borderBottom: '1px solid #eee',
+                    paddingBottom: 8,
+                    background: selectedPlace && (selectedPlace.place_id === place.place_id) ? '#ffeaea' : 'transparent',
+                    cursor: 'pointer'
+                  }}
+                  onClick={() => setSelectedPlace(place)}
+                >
+                  <strong>{place.name}</strong><br />
+                  {place.rating && <span>Rating: {place.rating} ⭐</span>}<br />
+                  {typeof place.price_level !== 'undefined' && <span>Price: {priceLevelToDollarSigns(place.price_level)}</span>}<br />
+                  {getPlaceAddress(place) && <span>Location: {getPlaceAddress(place)}</span>}<br />
+                  <a href={getGoogleMapsLink(place)} target="_blank" rel="noopener noreferrer">View on Google Maps</a>
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
         </>
       )}
