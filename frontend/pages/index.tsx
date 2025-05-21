@@ -46,7 +46,7 @@ export default function Home() {
   // Fetch nearby places from the backend using the user's location
   const fetchNearbyPlaces = async () => {
     if (!location) return;
-    const response = await fetch(`http://localhost:8000/api/nearby?lat=${location.lat}&lng=${location.lng}`);
+    const response = await fetch(`http://localhost:8000/api/nearby?lat=${location.lat}&lng=${location.lng}&type=restaurant&open_now=true&minprice=1&maxprice=3&radius=1000`);
     const data = await response.json();
     setPlaces(data);
   };
