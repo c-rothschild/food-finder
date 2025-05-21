@@ -84,7 +84,7 @@ func nearbyHandler(w http.ResponseWriter, r *http.Request) {
     req.Radius = radius
 
     // Parse place type from query params
-    parsePlaceType(placeType, req)
+    parsePlaceType(placeType, req, w)
 
     
     req.OpenNow = openNow
@@ -115,7 +115,7 @@ func parsePriceLevel(priceLevel string, w http.ResponseWriter) maps.PriceLevel {
 	case "4":
 		return maps.PriceLevelVeryExpensive
 	default:
-		http.Error(w, "Unknown price level", http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Unknown price level: '%s'", priceLevel), http.StatusInternalServerError)
 	}
 	return maps.PriceLevelFree
 }
@@ -130,11 +130,11 @@ func parsePriceLevels(minPriceStr string, maxPriceStr string, r *maps.NearbySear
 	}
 }
 
-func parsePlaceType(placeType string, r *maps.NearbySearchRequest) {
+func parsePlaceType(placeType string, r *maps.NearbySearchRequest, w http.ResponseWriter) {
 	if placeType != "" {
 		t, err := maps.ParsePlaceType(placeType)
 		if err != nil {
-			usageAndExit(fmt.Sprintf("Unknown place type \"%v\"", placeType))
+			http.Error(w, fmt.Sprintf("Unknown place type \"%v\"", placeType), http.StatusInternalServerError)
 		}
 
 		r.Type = t
