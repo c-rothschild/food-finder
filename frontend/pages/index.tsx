@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { GoogleMap, Marker, InfoWindow, useJsApiLoader } from '@react-google-maps/api';
 
+// Style for the map container
 const containerStyle = {
   width: '100%',
   height: '400px'
@@ -10,15 +11,21 @@ const containerStyle = {
 const BLUE_MARKER_ICON = 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png';
 
 export default function Home() {
+  // State to store fetched places
   const [places, setPlaces] = useState<any[]>([]);
+  // State to store user's location
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
+  // State to store error messages
   const [error, setError] = useState('');
+  // State to track which place's InfoWindow is open
   const [selectedPlace, setSelectedPlace] = useState<any | null>(null);
 
+  // Load the Google Maps JavaScript API
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY as string,
   });
 
+  // Request the user's current location using the browser's Geolocation API
   const requestLocation = () => {
     if (!navigator.geolocation) {
       setError('Geolocation is not supported by your browser');
@@ -36,6 +43,7 @@ export default function Home() {
     );
   };
 
+  // Fetch nearby places from the backend using the user's location
   const fetchNearbyPlaces = async () => {
     if (!location) return;
     const response = await fetch(`http://localhost:8000/api/nearby?lat=${location.lat}&lng=${location.lng}`);
@@ -46,8 +54,11 @@ export default function Home() {
   return (
     <div style={{ padding: 20 }}>
       <h1>Google Maps Location</h1>
+      {/* Button to get user's location */}
       <button onClick={requestLocation}>Get My Location</button>
+      {/* Display error messages if any */}
       {error && <div style={{ color: 'red' }}>{error}</div>}
+      {/* Render the map only when loaded and location is available */}
       {isLoaded && location && (
         <GoogleMap
           mapContainerStyle={containerStyle}
@@ -56,7 +67,7 @@ export default function Home() {
         >
           {/* User's location marker */}
           <Marker position={location} />
-          {/* Nearby places as blue markers with InfoWindow */}
+          {/* Render blue markers for each nearby place */}
           {places.map((place, idx) => (
             <Marker
               key={place.place_id || idx}
@@ -65,6 +76,7 @@ export default function Home() {
               onClick={() => setSelectedPlace(place)}
             />
           ))}
+          {/* Show InfoWindow with place name when a marker is clicked */}
           {selectedPlace && (
             <InfoWindow
               position={{
@@ -78,6 +90,7 @@ export default function Home() {
           )}
         </GoogleMap>
       )}
+      {/* Button to fetch nearby places, shown only after location is loaded */}
       {isLoaded && location && (
         <button onClick={fetchNearbyPlaces}>Fetch Nearby Places</button>
       )}
