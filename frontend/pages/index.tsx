@@ -24,15 +24,37 @@ function priceLevelToDollarSigns(level: number | undefined) {
   return '$'.repeat(level + 1);
 }
 
+// TypeScript type for a Google Places API result (as returned by backend)
+export interface Place {
+  place_id: string;
+  name: string;
+  geometry: {
+    location: {
+      lat: number;
+      lng: number;
+    };
+  };
+  rating?: number;
+  price_level?: number;
+  vicinity?: string;
+  formatted_address?: string;
+  user_ratings_total?: number;
+  types?: string[];
+  business_status?: string;
+  opening_hours?: {
+    open_now?: boolean;
+  };
+}
+
 export default function Home() {
   // State to store fetched places
-  const [places, setPlaces] = useState<any[]>([]);
+  const [places, setPlaces] = useState<Place[]>([]);
   // State to store user's location
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   // State to store error messages
   const [error, setError] = useState('');
   // State to track which place's InfoWindow is open
-  const [selectedPlace, setSelectedPlace] = useState<any | null>(null);
+  const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
   // State for minprice and maxprice selection
   const [minPrice, setMinPrice] = useState('1');
   const [maxPrice, setMaxPrice] = useState('4');
@@ -101,7 +123,7 @@ export default function Home() {
   };
 
   // Helper to get Google Maps link for a place
-  const getGoogleMapsLink = (place: any) => {
+  const getGoogleMapsLink = (place: Place) => {
     if (place.place_id) {
       return `https://www.google.com/maps/place/?q=place_id:${place.place_id}`;
     }
@@ -109,110 +131,200 @@ export default function Home() {
   };
 
   // Helper to show address/location (instead of travel time)
-  const getPlaceAddress = (place: any) => {
+  const getPlaceAddress = (place: Place) => {
     if (place.vicinity) return place.vicinity;
     if (place.formatted_address) return place.formatted_address;
     return '';
   };
 
   return (
-    <div style={{ padding: 20 }}>
-      <h1>Find Restaurants Near You</h1>
-      <button onClick={requestLocation}>Get My Location</button>
-      {error && <div style={{ color: 'red' }}>{error}</div>}
-      {isLoaded && location && (
-        <>
-        <div style={{ margin: '10px 0' }}>
-            <label>
-              Min Price:
-              <select value={minPrice} onChange={handleMinPriceChange} style={{ marginLeft: 8, marginRight: 16 }}>
-                {minPriceOptions.map(opt => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Max Price:
-              <select value={maxPrice} onChange={handleMaxPriceChange} style={{ marginLeft: 8, marginRight: 16 }}>
-                {maxPriceOptions.map(opt => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Radius (meters):
-              <input
-                type="number"
-                min={1}
-                value={radius}
-                onChange={handleRadiusChange}
-                style={{ marginLeft: 8, width: 100 }}
-              />
-            </label>
-            <button onClick={fetchNearbyPlaces}>Fetch Nearby Places</button>
-          </div>
-        {/* Sticky map container */}
-        <div style={{ position: 'sticky', top: 0, zIndex: 10, background: '#fff', paddingBottom: 16 }}>
-          <GoogleMap
-            mapContainerStyle={containerStyle}
-            center={location}
-            zoom={15}
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #f8fafc 0%, #e0e7ef 100%)', padding: 0, margin: 0 }}>
+      <div style={{
+        maxWidth: 700,
+        margin: '32px auto',
+        background: '#fff',
+        borderRadius: 18,
+        boxShadow: '0 4px 24px rgba(0,0,0,0.08)',
+        padding: 32,
+        position: 'relative',
+      }}>
+        <h1 style={{ textAlign: 'center', fontWeight: 700, fontSize: 32, color: '#2d3748', marginBottom: 24 }}>Find Restaurants Near You</h1>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
+          <button
+            onClick={requestLocation}
+            style={{
+              background: 'linear-gradient(90deg, #4f8cff 0%, #38b2ac 100%)',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 8,
+              padding: '10px 24px',
+              fontWeight: 600,
+              fontSize: 16,
+              cursor: 'pointer',
+              boxShadow: '0 2px 8px rgba(79,140,255,0.08)',
+              transition: 'background 0.2s',
+              marginRight: 8
+            }}
           >
-            <Marker position={location} />
-            {places.map((place, idx) => (
-              <Marker
-                key={place.place_id || idx}
-                position={{ lat: place.geometry.location.lat, lng: place.geometry.location.lng }}
-                icon={selectedPlace && (selectedPlace.place_id === place.place_id) ? RED_MARKER_ICON : BLUE_MARKER_ICON}
-                onClick={() => setSelectedPlace(place)}
-              />
-            ))}
-            {selectedPlace && (
-              <InfoWindow
-                position={{
-                  lat: selectedPlace.geometry.location.lat,
-                  lng: selectedPlace.geometry.location.lng
-                }}
-                onCloseClick={() => setSelectedPlace(null)}
-              >
-                <div>{selectedPlace.name}</div>
-              </InfoWindow>
-            )}
-          </GoogleMap>
+            Get My Location
+          </button>
+          <button
+            onClick={fetchNearbyPlaces}
+            style={{
+              background: 'linear-gradient(90deg, #38b2ac 0%, #4f8cff 100%)',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 8,
+              padding: '10px 24px',
+              fontWeight: 600,
+              fontSize: 16,
+              cursor: 'pointer',
+              boxShadow: '0 2px 8px rgba(56,178,172,0.08)',
+              transition: 'background 0.2s',
+            }}
+          >
+            Fetch Nearby Places
+          </button>
         </div>
-        {/* Show message if search performed and no places found */}
-        {searchPerformed && places.length === 0 && (
-          <div style={{ color: 'orange', marginTop: 16 }}>No places found for the selected criteria.</div>
-        )}
-        {/* Scrollable results list */}
-        {places.length > 0 && (
-          <div style={{ marginTop: 24, maxHeight: 400, overflowY: 'auto', border: '1px solid #eee', borderRadius: 8, background: '#fafafa', padding: 16 }}>
-            <h2>Results</h2>
-            <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-              {places.map((place, idx) => (
-                <li
-                  key={place.place_id || idx}
+        {error && <div style={{ color: '#e53e3e', background: '#fff5f5', borderRadius: 6, padding: 8, marginBottom: 16, textAlign: 'center' }}>{error}</div>}
+        {isLoaded && location && (
+          <>
+            <div style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: 16,
+              marginBottom: 20,
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}>
+              <label style={{ fontWeight: 500, color: '#2d3748' }}>
+                Min Price:
+                <select
+                  value={minPrice}
+                  onChange={handleMinPriceChange}
                   style={{
-                    marginBottom: 16,
-                    borderBottom: '1px solid #eee',
-                    paddingBottom: 8,
-                    background: selectedPlace && (selectedPlace.place_id === place.place_id) ? '#ffeaea' : 'transparent',
-                    cursor: 'pointer'
+                    marginLeft: 8,
+                    marginRight: 16,
+                    borderRadius: 6,
+                    border: '1px solid #cbd5e1',
+                    padding: '6px 12px',
+                    fontSize: 15,
                   }}
-                  onClick={() => setSelectedPlace(place)}
                 >
-                  <strong>{place.name}</strong><br />
-                  {place.rating && <span>Rating: {place.rating} ⭐</span>}<br />
-                  {typeof place.price_level !== 'undefined' && <span>Price: {priceLevelToDollarSigns(place.price_level)}</span>}<br />
-                  {getPlaceAddress(place) && <span>Location: {getPlaceAddress(place)}</span>}<br />
-                  <a href={getGoogleMapsLink(place)} target="_blank" rel="noopener noreferrer">View on Google Maps</a>
-                </li>
-              ))}
-            </ul>
-          </div>
+                  {minPriceOptions.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </label>
+              <label style={{ fontWeight: 500, color: '#2d3748' }}>
+                Max Price:
+                <select
+                  value={maxPrice}
+                  onChange={handleMaxPriceChange}
+                  style={{
+                    marginLeft: 8,
+                    marginRight: 16,
+                    borderRadius: 6,
+                    border: '1px solid #cbd5e1',
+                    padding: '6px 12px',
+                    fontSize: 15,
+                  }}
+                >
+                  {maxPriceOptions.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </label>
+              <label style={{ fontWeight: 500, color: '#2d3748' }}>
+                Radius (meters):
+                <input
+                  type="number"
+                  min={1}
+                  value={radius}
+                  onChange={handleRadiusChange}
+                  style={{
+                    marginLeft: 8,
+                    width: 100,
+                    borderRadius: 6,
+                    border: '1px solid #cbd5e1',
+                    padding: '6px 12px',
+                    fontSize: 15,
+                  }}
+                />
+              </label>
+            </div>
+            <div style={{ position: 'sticky', top: 0, zIndex: 10, background: '#fff', paddingBottom: 16, borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+              <GoogleMap
+                mapContainerStyle={containerStyle}
+                center={location}
+                zoom={15}
+              >
+                <Marker position={location} />
+                {places.map((place, idx) => (
+                  <Marker
+                    key={place.place_id || idx}
+                    position={{ lat: place.geometry.location.lat, lng: place.geometry.location.lng }}
+                    icon={selectedPlace && (selectedPlace.place_id === place.place_id) ? RED_MARKER_ICON : BLUE_MARKER_ICON}
+                    onClick={() => setSelectedPlace(place)}
+                  />
+                ))}
+                {selectedPlace && (
+                  <InfoWindow
+                    position={{
+                      lat: selectedPlace.geometry.location.lat,
+                      lng: selectedPlace.geometry.location.lng
+                    }}
+                    onCloseClick={() => setSelectedPlace(null)}
+                  >
+                    <div>{selectedPlace.name}</div>
+                  </InfoWindow>
+                )}
+              </GoogleMap>
+            </div>
+            {searchPerformed && places.length === 0 && (
+              <div style={{ color: '#e53e3e', background: '#fff5f5', borderRadius: 6, padding: 12, marginTop: 16, textAlign: 'center' }}>No places found for the selected criteria.</div>
+            )}
+            {places.length > 0 && (
+              <div style={{
+                marginTop: 24,
+                maxHeight: 400,
+                overflowY: 'auto',
+                border: '1px solid #e2e8f0',
+                borderRadius: 12,
+                background: '#f7fafc',
+                padding: 20,
+                boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
+              }}>
+                <h2 style={{ fontSize: 22, fontWeight: 600, color: '#2d3748', marginBottom: 16 }}>Results</h2>
+                <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                  {places.map((place, idx) => (
+                    <li
+                      key={place.place_id || idx}
+                      style={{
+                        marginBottom: 16,
+                        borderBottom: '1px solid #e2e8f0',
+                        paddingBottom: 8,
+                        background: selectedPlace && (selectedPlace.place_id === place.place_id) ? '#e6fffa' : 'transparent',
+                        cursor: 'pointer',
+                        borderRadius: 8,
+                        padding: 12,
+                        transition: 'background 0.2s',
+                      }}
+                      onClick={() => setSelectedPlace(place)}
+                    >
+                      <strong style={{ fontSize: 18, color: '#2b6cb0' }}>{place.name}</strong><br />
+                      {place.rating && <span style={{ color: '#805ad5' }}>Rating: {place.rating} ⭐</span>}<br />
+                      {typeof place.price_level !== 'undefined' && <span style={{ color: '#2f855a' }}>Price: {priceLevelToDollarSigns(place.price_level)}</span>}<br />
+                      {getPlaceAddress(place) && <span style={{ color: '#4a5568' }}>Location: {getPlaceAddress(place)}</span>}<br />
+                      <a href={getGoogleMapsLink(place)} target="_blank" rel="noopener noreferrer" style={{ color: '#3182ce', textDecoration: 'underline', fontWeight: 500 }}>View on Google Maps</a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </>
         )}
-        </>
-      )}
+      </div>
     </div>
   );
 }

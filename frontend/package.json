@@ -7,7 +7,6 @@
     "@testing-library/dom": "^10.4.0",
     "@types/jest": "^29.5.14",
     "@types/react-dom": "^19.1.5",
-    "eslint": "^9.27.0",
     "leaflet": "^1.9.4",
     "next": "^15.3.2",
     "react": "^19.1.0",
@@ -18,7 +17,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "eslint ."
   },
   "browserslist": {
     "production": [
@@ -35,6 +34,8 @@
   "devDependencies": {
     "@types/node": "^22.15.19",
     "@types/react": "^19.1.4",
+    "eslint": "8",
+    "eslint-config-next": "^15.1.8",
     "typescript": "^5.8.3"
   }
 }

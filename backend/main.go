@@ -1,3 +1,6 @@
+// main.go - Go backend for Food Finder
+// Provides API endpoints for searching nearby places using Google Maps API
+
 package main
 
 import (
@@ -12,6 +15,17 @@ import (
     "context"
 )
 
+// apiKey is set from the environment variable or command-line flag
+var (
+    apiKey = flag.String("key", os.Getenv("NEXT_PUBLIC_GOOGLE_MAPS_API_KEY"), "API Key for using Google Maps API.")
+)
+
+// Message is a simple struct for hello endpoint responses
+// (not currently used, but kept for example/expansion)
+type Message struct {
+    Message string `json:"message"`
+}
+
 // enableCORS sets CORS headers to allow requests from the frontend
 func enableCORS(w http.ResponseWriter) {
     w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
@@ -19,29 +33,15 @@ func enableCORS(w http.ResponseWriter) {
     w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 }
 
+// helloHandler is a simple test endpoint
+func helloHandler(w http.ResponseWriter, r *http.Request) {
+    enableCORS(w)
+    json.NewEncoder(w).Encode(Message{Message: "Hello from Go!"})
+}
+
 // nearbyHandler handles GET requests to /api/nearby and returns nearby places from Google Maps
 func nearbyHandler(w http.ResponseWriter, r *http.Request) {
     enableCORS(w)
-
-    // Handle preflight OPTIONS request
-    if r.Method == "OPTIONS" {
-        w.WriteHeader(http.StatusOK)
-        return
-    }
-
-    // Parse latitude and longitude from query params
-    latStr, lngStr := r.URL.Query().Get("lat"), r.URL.Query().Get("lng")
-    lat, err := strconv.ParseFloat(latStr, 64)
-    if err != nil {
-        http.Error(w, "Invalid latitude", http.StatusBadRequest)
-        return
-    }
-
-    lng, err := strconv.ParseFloat(lngStr, 64)
-    if err != nil {
-        http.Error(w, "Invalid longitude", http.StatusBadRequest)
-        return
-    }
 
     // Get API key from environment
     apiKey := os.Getenv("NEXT_PUBLIC_GOOGLE_MAPS_API_KEY")
@@ -57,11 +57,13 @@ func nearbyHandler(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    // Build the Nearby Search request
-    req := &maps.NearbySearchRequest{
-        Location: &maps.LatLng{Lat: lat, Lng: lng},
-        
+    // Handle preflight OPTIONS request
+    if r.Method == "OPTIONS" {
+        w.WriteHeader(http.StatusOK)
+        return
     }
+
+    req := &maps.NearbySearchRequest{}
 
     // Parse price levels from query params
     minPriceStr := r.URL.Query().Get("minprice")
@@ -69,6 +71,22 @@ func nearbyHandler(w http.ResponseWriter, r *http.Request) {
     radiusStr := r.URL.Query().Get("radius")
     placeType := r.URL.Query().Get("type")
     openNow := r.URL.Query().Get("open_now") == "true"
+
+    // Parse latitude and longitude from query params
+    latStr, lngStr := r.URL.Query().Get("lat"), r.URL.Query().Get("lng")
+    lat, err := strconv.ParseFloat(latStr, 64)
+    if err != nil {
+        http.Error(w, "Invalid latitude", http.StatusBadRequest)
+        return
+    }
+
+    lng, err := strconv.ParseFloat(lngStr, 64)
+    if err != nil {
+        http.Error(w, "Invalid longitude", http.StatusBadRequest)
+        return
+    }
+
+    req.Location = &maps.LatLng{Lat: lat, Lng: lng}
 
     // Parse minPrice and maxPrice to int
     var radius uint
@@ -100,7 +118,6 @@ func nearbyHandler(w http.ResponseWriter, r *http.Request) {
     // Return the results as JSON
     json.NewEncoder(w).Encode(results.Results)
 }
-
 
 func parsePriceLevel(priceLevel string, w http.ResponseWriter) maps.PriceLevel {
 	switch priceLevel {
@@ -150,6 +167,7 @@ func main() {
     log.Println("Server running on :8000")
     log.Fatal(http.ListenAndServe(":8000", nil))
 }
+
 func usageAndExit(msg string) {
 	fmt.Fprintln(os.Stderr, msg)
 	fmt.Println("Flags:")
